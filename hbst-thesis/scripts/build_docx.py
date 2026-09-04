@@ -84,6 +84,9 @@ def set_run(run, cn=BODY_FONT_CN, en=BODY_FONT_EN, size=BODY_SIZE_PT, bold=False
     run.font.name = en
     run.font.size = Pt(size)
     run.font.bold = bold
+    # 论文正文与标题一律纯黑（模板要求；避免继承 Word 内置 Heading 的蓝色主题色）
+    from docx.shared import RGBColor
+    run.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
     if superscript:
         run.font.superscript = True
     rPr = run._element.get_or_add_rPr()
@@ -439,6 +442,9 @@ def add_heading(doc, level, text):
     add_text_with_citations(p, text, cn=HEADING_FONT_CN, size=size, bold=bold)
     if level == 1:
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # 每个一级标题（章/结论/参考文献/致谢/附录）另起一页；
+        # 分节换页后标题已在页首时该属性不产生额外空白页
+        p.paragraph_format.page_break_before = True
     # 行距与段距（按模板 Heading 样式，显式兜底）
     set_para(p, line_exact=None)
     return p
@@ -466,12 +472,12 @@ def add_image(doc, alt, path, img_max_cm):
     except Exception:
         pass
     p.add_run().add_picture(path, width=width)
-    # 图注（alt 或下一段以"图"开头）
+    # 图注（alt 或下一段以"图"开头）：黑体 11pt（模板"图标题q"），图下方
     caption = alt if alt.strip() else None
     if caption:
         cp = doc.add_paragraph(); cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
         set_para(cp, before=0, after=6)
-        set_run(cp.add_run(caption), size=10.5)
+        set_run(cp.add_run(caption), cn=HEADING_FONT_CN, size=11)
 
 
 def build_docx(manuscript_path, out_path, img_max_cm):
@@ -480,11 +486,30 @@ def build_docx(manuscript_path, out_path, img_max_cm):
     meta, rest = parse_front_matter(lines)
 
     doc = Document()
-    # 默认样式兜底
+    # 样式兜底：全文字体黑色（标题/正文均不得出现主题蓝），西文 Times New Roman
+    from docx.shared import RGBColor
+    for sname in ("Normal", "Heading 1", "Heading 2", "Heading 3", "Title", "Subtitle"):
+        try:
+            st = doc.styles[sname]
+        except KeyError:
+            continue
+        st.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
     normal = doc.styles["Normal"]
     normal.font.name = BODY_FONT_EN
     normal.font.size = Pt(BODY_SIZE_PT)
     normal.element.rPr.rFonts.set(qn("w:eastAsia"), BODY_FONT_CN)
+    # 标题字体显式设黑体/字号（Heading 样式默认西文 Calibri Light、带蓝色）
+    for sname, (cn, pt) in (("Heading 1", (HEADING_FONT_CN, 15)), ("Heading 2", (HEADING_FONT_CN, 14)),
+                            ("Heading 3", (HEADING_FONT_CN, 13))):
+        try:
+            st = doc.styles[sname]
+        except KeyError:
+            continue
+        st.font.name = BODY_FONT_EN
+        st.font.size = Pt(pt)
+        st.element.rPr.rFonts.set(qn("w:eastAsia"), cn)
+        st.font.bold = (sname != "Heading 2")  # 一级/三级加粗，二级不加粗（模板）
+    # 正文段落级行距与缩进由各 add_* 显式控制，此处只兜底字体
 
     # 节 1：封面
     sec0 = doc.sections[0]
@@ -542,7 +567,7 @@ def build_docx(manuscript_path, out_path, img_max_cm):
                 cp = doc.add_paragraph(); cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 set_para(cp, line_exact=None, after=3)
                 cp.paragraph_format.keep_with_next = True
-                set_run(cp.add_run(pending_table_caption), cn=HEADING_FONT_CN, size=10.5, bold=False)
+                set_run(cp.add_run(pending_table_caption), cn=HEADING_FONT_CN, size=11, bold=False)
                 pending_table_caption = None
             add_table(doc, header, rows)
         elif kind == "img":
