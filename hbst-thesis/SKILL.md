@@ -71,11 +71,13 @@ description: 依据真实项目源码生成/改写"可直接提交"的河北科�
 - 见 [references/04-thesis-voice.md](references/04-thesis-voice.md)：正文用"本文设计并实现了/本系统采用/该模块主要完成/测试结果表明"，**禁止**"根据源码/从代码证据看/待补/占位/当前材料"等过程措辞、本地路径、源码文件名（`init.sql`/`pom.xml`）进入正文。
 - 术语唯一、中英对照、无口语广告腔、无重复字句、标点全角统一（完整规则在 writing-standards §8 与 humanize §4）。
 
+**章节框架（强制）**：见 [references/06-chapter-templates.md](references/06-chapter-templates.md)。第 1 章标题与层级**严格按"1.1 研究背景 / 1.2 国内外研究现状（1.2.1 国外XXX平台发展现状 / 1.2.2 国内XXX应用发展现状）/ 1.3 本文研究内容与技术路线"**，不得增删层级；其余章按默认骨架。
+
 ### 2.2 图表生产规则
 
 - 图题注在图**下**、表题注在表**上**，居中；编号按章：`图X.Y`/`表X.Y`；每图表先有正文引导句再出现。
 - 表格一律**三线表**（顶线/栏目线/底线，无竖线无内部横线）；跨页表：表头行重复 + 行不跨页断行 + 续页标注"续表 X.Y"。docx 层的落法见 [references/05-docx-production.md](references/05-docx-production.md)。
-- 结构图（用例/架构/功能/流程/E-R）：优先产出可编辑源（`.vsdx`/`.drawio` 或绘图脚本）再导出高清 PNG；无法生成可编辑源时，用代码/脚本绘制 PNG 亦可，但**总E-R 图只放实体与关系，字段进单实体E-R与三线表**。
+- **结构图规范（强制）**：见 [references/07-diagram-standards.md](references/07-diagram-standards.md)。除"系统运行截图"外的一切图（用例图/流程图/时序图/架构图/模块结构图/E-R 图/技术路线图）**必须出自可编辑矢量源（`.vsdx` 或 `.drawio`）**，docx 内嵌其高清导出图，可编辑源随论文留档并在 `figure-registry.yaml` 登记。**禁止用 matplotlib/绘图脚本直出的位图 PNG 当作结构图交付**（会被要求提供 Visio 原图）。生成工具：优先本机 Visio COM；无 Visio 时用 [scripts/gen_diagram.py](scripts/gen_diagram.py) 生成 `.drawio` 可编辑源，再由 draw.io 导出 PNG（插图）与 `.vsdx`（留档/交审）。
 - 截图：真图、清晰、无测试脏数据、无占位文字、宽高不过大撑页（显示宽约 10–15cm）。
 
 ### 2.3 降AIGC优化（随章或成文后整体执行）
@@ -146,8 +148,11 @@ description: 依据真实项目源码生成/改写"可直接提交"的河北科�
 | references/03-template-reverse.md | 河北科技师范学院模板画像 + 模板逆向方法 | 有模板或需要格式基线时 |
 | references/04-thesis-voice.md | 论文语气：可用句式 vs 禁入正文的"过程/证据"措辞 | 阶段二动笔前 |
 | references/05-docx-production.md | docx 受控生成 + 分节页码/域/三线表/续表/超链接的落法细节 | 阶段三 |
+| references/06-chapter-templates.md | 章节级写作模板：第1章强制框架（1.1/1.2.1国外/1.2.2国内/1.3）+ 各章骨架 | 阶段二第1章动笔前必读 |
+| references/07-diagram-standards.md | 图源规范：结构图必须可编辑矢量源（.vsdx/.drawio），禁位图冒充；工具链 | 阶段二画结构图前 |
 | scripts/evidence_scan.py | 源码证据扫描辅助 | 阶段一（可选） |
 | scripts/build_docx.py | 按模板画像从约定格式 Markdown 稿生成含 6 分节/页码域/页眉/TOC 域/三线表的 .docx | 阶段三 |
+| scripts/gen_diagram.py | 从结构化描述生成可编辑 .drawio 结构图源（用例/流程/架构/E-R/JSON），供 draw.io 导出 PNG 与 .vsdx | 阶段二结构图（无 Visio 时） |
 | scripts/check_text_quality.py | 文本闸门：缺证措辞/编号闭合/引用闭合/字数 | 阶段三闸门 1 |
 | scripts/check_docx_structure.py | docx 结构闸门：分节/标题样式/域/三线表/续表 | 阶段三闸门 3（可选） |
 
