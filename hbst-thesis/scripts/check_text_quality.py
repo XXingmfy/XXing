@@ -124,13 +124,34 @@ def main():
     elif max_cite and ref_count and max_cite < ref_count:
         add("T9", "WARN", f"正文最大引用 [{max_cite}] < 参考文献条目 {ref_count}（可能有未被引用的文献）")
 
+    # T10 三线表"注释"列超长（writing-standards §6.5：≤4 汉字概括，禁止枚举/长说明）
+    table_rows = re.findall(r"^\s*\|[^\n]+$", text_clean, flags=re.M)
+    long_note = []
+    for row in table_rows:
+        cells = [c.strip() for c in row.strip().strip("|").split("|")]
+        if len(cells) >= 7:  # 数据库字段表：编号|字段名|类型|长度|是否非空|是否主键|注释
+            note = cells[6]
+            if not re.fullmatch(r"[\s|:\-]*", note):
+                # 汉字数 + 连续西文/数字段(每段算1字)
+                han = len(re.findall(r"[\u4e00-\u9fff]", note))
+                latingroups = len(re.findall(r"[A-Za-z0-9_./-]+", note))
+                if han + latingroups > 4 and note not in ("编号", "注释", "字段名", "类型", "长度", "是否非空", "是否主键"):
+                    long_note.append(note)
+    if long_note:
+        # 去重、限量展示
+        uniq = []
+        for x in long_note:
+            if x not in uniq:
+                uniq.append(x)
+        add("T10", "FAIL", f"表'注释'列存在超4字条目 ×{len(long_note)}: {uniq[:8]}（应≤4汉字概括，见 writing-standards §6.5）")
+
     failed = [i for i in issues if i["level"] == "FAIL"]
     report = {
         "cjk_chars": cjk,
         "issues": issues,
         "failed_count": len(failed),
         "passed": len(failed) == 0,
-        "note": "T7 匿名引用与 T9 闭合为辅助信号，最终以人工复核为准；T5 阈值按 humanize B1 建议 40 字可加严。",
+        "note": "T7 匿名引用、T9 闭合、T10 注释长度为辅助信号，最终以人工复核为准；T5 阈值按 humanize B1 建议 40 字可加严。",
     }
     out = json.dumps(report, ensure_ascii=False, indent=2)
     if args.json:

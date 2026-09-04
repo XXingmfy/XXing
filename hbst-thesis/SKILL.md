@@ -153,6 +153,7 @@ description: 依据真实项目源码生成/改写"可直接提交"的河北科�
 | scripts/evidence_scan.py | 源码证据扫描辅助 | 阶段一（可选） |
 | scripts/build_docx.py | 按模板画像从约定格式 Markdown 稿生成含 6 分节/页码域/页眉/TOC 域/三线表的 .docx | 阶段三 |
 | scripts/gen_diagram.py | 从结构化描述生成可编辑 .drawio 结构图源（用例/流程/架构/E-R/JSON），供 draw.io 导出 PNG 与 .vsdx | 阶段二结构图（无 Visio 时） |
+| scripts/export_drawio.py | 批量把 .drawio 导出 PNG（插图）+ .vsdx（交审），自动探测本机 draw.io（需已安装） | 阶段二/三（已装 draw.io 时） |
 | scripts/check_text_quality.py | 文本闸门：缺证措辞/编号闭合/引用闭合/字数 | 阶段三闸门 1 |
 | scripts/check_docx_structure.py | docx 结构闸门：分节/标题样式/域/三线表/续表 | 阶段三闸门 3（可选） |
 
