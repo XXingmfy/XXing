@@ -43,12 +43,14 @@ def _cell(tag, **attrs):
 
 
 def _mx_cell(node_id, parent, value, style, vertex, x, y, w, h):
+    # vertex cell: parent 指向图层 id；geometry 必须带 as="geometry"
     cell = _cell("mxCell", id=node_id, parent=parent, value=value or None,
                  style=style, vertex="1" if vertex else "0", edge="0" if vertex else None)
     geo = ET.SubElement(cell, "mxGeometry")
     if vertex:
         geo.set("x", str(x)); geo.set("y", str(y))
         geo.set("width", str(w)); geo.set("height", str(h))
+    geo.set("as", "geometry")
     return cell
 
 
@@ -62,10 +64,14 @@ def _mx_edge(edge_id, parent, src, dst, label, style):
 
 
 def build_drawio_xml(cells):
-    """cells: list of mxCell 元素（无 namespace）。返回 .drawio 完整文本。"""
+    """cells: list of mxCell 元素（无 namespace）。返回 .drawio 完整文本（draw.io 可解析结构）。"""
     mxfile = ET.Element("mxfile", {"host": "app.diagrams.net", "agent": "hbst-thesis", "version": "21.0.0"})
     diagram = ET.SubElement(mxfile, "diagram", {"id": "d1", "name": "Page-1"})
-    model = ET.SubElement(diagram, "mxGraphModel")
+    model = ET.SubElement(diagram, "mxGraphModel",
+                          {"dx": "900", "dy": "600", "grid": "1", "gridSize": "10",
+                           "guides": "1", "tooltips": "1", "connect": "1", "arrows": "1",
+                           "fold": "1", "page": "1", "pageScale": "1", "pageWidth": "827",
+                           "pageHeight": "1169", "math": "0", "shadow": "0"})
     root = ET.SubElement(model, "root")
     layer0 = _cell("mxCell", id="0")
     layer1 = _cell("mxCell", id="1", parent="0")
@@ -95,7 +101,7 @@ def _auto_layout(n, start_x=40, start_y=40, dx=180, dy=90, cols=None):
 def gen_usecase(out, actors, usecases):
     """参与者(左) + 系统边界框 + 用例椭圆(中)。actors/usecases 为列表。"""
     cells = []
-    nid = 1
+    nid = 2
     # 边界框
     box_h = max(140, len(usecases) * 80 + 40)
     cells.append(_mx_cell(nid, 1, "系统", "rounded=1;whiteSpace=wrap;html=1;dashed=1;", True, 240, 40, 520, box_h))
@@ -139,22 +145,27 @@ def gen_flow(out, steps):
             parsed.append((t.strip(), k.strip()))
         else:
             parsed.append(s)
-    nid = 1
-    x, y, w, h = 40, 40, 180, 54
-    prev = None
+    nid = 2
+    x, y, w, h = 40, 40, 200, 54
     style_map = {"box": "rounded=1;whiteSpace=wrap;html=1;", "rhom": "rhombus;whiteSpace=wrap;html=1;",
                  "ellipse": "ellipse;whiteSpace=wrap;html=1;", "actor": "shape=actor;whiteSpace=wrap;html=1;"}
+    ROW = 100   # 每行固定步长（含普通框/菱形/起止）
     ids = []
     for i, (t, k) in enumerate(parsed):
         st = style_map.get(k, style_map["box"])
         hh = h
-        if k == "rhom":
-            hh = 90
-        cells.append(_mx_cell(nid, 1, txt(t), st, True, x, y + i * (hh + 40), w, hh))
+        yy = y + i * ROW
+        # 菱形/椭圆视觉居中于步长内
+        if k in ("rhom", "ellipse"):
+            hh = 74
+            yy = y + i * ROW + (ROW - hh) // 2
+        cells.append(_mx_cell(nid, 1, txt(t), st, True, x, yy, w, hh))
         ids.append(nid)
         nid += 1
     for i in range(1, len(ids)):
-        cells.append(_mx_edge(nid, 1, ids[i - 1], ids[i], "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;"))
+        # 判断(菱形)后的"是"分支直下；此简化版按顺序串连并标箭头，复杂分支用 JSON 模式画
+        cells.append(_mx_edge(nid, 1, ids[i - 1], ids[i], "",
+                              "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"))
         nid += 1
     _write(out, cells)
 
@@ -162,7 +173,7 @@ def gen_flow(out, steps):
 def gen_arch(out, layers):
     """layers: list of "层名: 项1,项2,..." 或 (层名, [项])。自上而下分层。"""
     cells = []
-    nid = 1
+    nid = 2
     parsed = []
     for l in layers:
         if isinstance(l, str) and ":" in l:
@@ -204,7 +215,7 @@ def gen_arch(out, layers):
 def gen_er(out, entities, relations):
     """entities: [(名称, 颜色/标注)] ; relations: [(from, to, label)]，E-R 实体框。"""
     cells = []
-    nid = 1
+    nid = 2
     pos = _auto_layout(len(entities), start_x=60, start_y=60, dx=300, dy=220, cols=2)
     ent_ids = {}
     for (name, _), (x, y) in zip(entities, pos):

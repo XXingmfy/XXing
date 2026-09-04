@@ -21,14 +21,19 @@
 （hbst-thesis 不内置整套 Visio COM 脚本，按需在目标机编写；布局与重叠断言可参考 scripts/gen_diagram.py 的思路。）
 
 ### 2.2 本机装有 draw.io（免费，推荐无 Visio 时使用）
+本机默认安装路径：`D:\Tools_Home\drawio\draw.io\draw.io.exe`（`export_drawio.py` 已内置探测）。
 1. 用 `scripts/gen_diagram.py` 从结构化描述生成可编辑源 `xxx.drawio`；
-2. 用 draw.io 命令行导出论文插图 PNG 与可编辑 `.vsdx`：
+2. 用 `scripts/export_drawio.py` 批量导出论文插图 PNG 与可编辑 `.vsdx`：
    ```bash
-   drawio -x -f png -o figs/fig3_1_usecase.png figs/fig3_1_usecase.drawio
-   drawio -x -f vsdx -o figs/fig3_1_usecase.vsdx figs/fig3_1_usecase.drawio   # 供交审/留档
+   # 导出到源文件同目录
+   python scripts/export_drawio.py figs/
+   # 每次新图组自动归档到 D:\Tools_Home\drawio\Load\<时间戳_论文名>\（推荐）
+   python scripts/export_drawio.py figs/ --to-load --tag 校园事务管理系统
+   # 导出单个
+   python scripts/export_drawio.py figs/fig3_1.drawio --out-dir D:/Tools_Home/drawio/Load/本次论文
    ```
-   （若本机 draw.io CLI 未入 PATH，用桌面版打开 `.drawio` → File → Export as → PNG / VSDX。）
 3. `.drawio` 是公开 XML，**Visio 2013+ 可直接打开 `.vsdx`**，或 draw.io 内 File→Export as→VSDX 得到 Visio 原生文件。
+4. 产物三件套（`.drawio` 源 + `.png` 插图 + `.vsdx` 交审）默认按次归档在 `D:\Tools_Home\drawio\Load\` 下各自新文件夹；论文 docx 只内嵌 PNG，`.vsdx/.drawio` 留档供导师索取原图。
 
 ### 2.3 两者皆无
 - 仍用 `gen_diagram.py` 产出 `.drawio` 可编辑源；

@@ -20,25 +20,27 @@ export_drawio.py — 把 .drawio 可编辑图源批量导出为 PNG（论文插�
 导出后建议把 .drawio/.png/.vsdx 同名三件套登记进 figure-registry.yaml（见 references/07-diagram-standards.md）。
 """
 import argparse
+import datetime
 import os
 import shutil
 import subprocess
 import sys
 
-CANDIDATES = [
-    # Windows
+# 本机已知的 draw.io 安装位置（用户指定）+ 常规位置
+KNOWN_DRAWIO = [
+    r"D:\Tools_Home\drawio\draw.io\draw.io.exe",   # ← 用户本机实际安装路径
     r"C:\Program Files\draw.io\draw.io.exe",
     r"C:\Program Files (x86)\draw.io\draw.io.exe",
     os.path.expandvars(r"%LOCALAPPDATA%\Programs\draw.io\draw.io.exe"),
     r"C:\Program Files\draw.io\drawio.exe",
-    # macOS
     "/Applications/draw.io.app/Contents/MacOS/draw.io",
     "/Applications/Draw.io.app/Contents/MacOS/draw.io",
-    # Linux (snap / 直接安装)
     "/snap/bin/drawio",
     "/usr/bin/drawio",
     "/usr/local/bin/drawio",
 ]
+# 论文图默认输出根目录（用户指定：每次新建一个对应子文件夹）
+DEFAULT_OUTPUT_ROOT = r"D:\Tools_Home\drawio\Load"
 
 
 def find_drawio():
@@ -49,10 +51,19 @@ def find_drawio():
         p = shutil.which(name)
         if p:
             return p
-    for c in CANDIDATES:
+    for c in KNOWN_DRAWIO:
         if os.path.exists(c):
             return c
     return None
+
+
+def default_output_dir(tag=None):
+    """返回 D:\\Tools_Home\\drawio\\Load\\<YYYYMMDD_HHMMSS[_tag]> 并创建。"""
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    name = f"{ts}" + (f"_{tag}" if tag else "")
+    d = os.path.join(DEFAULT_OUTPUT_ROOT, name)
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 def main():
@@ -61,6 +72,9 @@ def main():
     ap.add_argument("--find", action="store_true", help="仅探测 draw.io 位置")
     ap.add_argument("--png-dpi", type=int, default=200)
     ap.add_argument("--skip-vsdx", action="store_true", help="不导出 .vsdx")
+    ap.add_argument("--out-dir", default=None, help="导出到指定目录（并归档 .drawio 源）")
+    ap.add_argument("--to-load", action="store_true", help="自动导出到 D:\\Tools_Home\\drawio\\Load\\<时间戳>\\ 新文件夹")
+    ap.add_argument("--tag", default="", help="与 --to-load 搭配，为文件夹加后缀名（如论文题目标识）")
     args = ap.parse_args()
 
     bin_path = find_drawio()
@@ -75,9 +89,14 @@ def main():
         print("可在任意装有 draw.io 的机器打开导出，或在桌面版中：File → Export as → PNG / VSDX。")
         return 2
 
-    # 判定是否 CLI 可用（桌面版 GUI 无法带 -x 批量）
-    is_cli = os.path.basename(bin_path).lower().startswith("drawio") or "draw.io" in os.path.basename(bin_path).lower()
-    # drawio.exe 同时支持命令行(-x)；Windows 桌面版本质同一 exe，尝试 CLI 方式，失败再提示 GUI
+    # 默认输出：目标目录内同名导出；指定 --out-dir 时导出到该目录（并复制 .drawio 源过去）
+    out_dir = None
+    if args.out_dir:
+        out_dir = os.path.abspath(args.out_dir)
+        os.makedirs(out_dir, exist_ok=True)
+    # --to-load: 自动输出到 D:\Tools_Home\drawio\Load\<时间戳[_tag]>\ 并复制源
+    if args.to_load:
+        out_dir = default_output_dir(args.tag)
     if os.path.isdir(args.target):
         files = sorted(f for f in os.listdir(args.target) if f.lower().endswith(".drawio"))
     else:
@@ -91,27 +110,34 @@ def main():
     for f in files:
         src = os.path.join(args.target, f)
         stem = os.path.splitext(f)[0]
-        outs = []
-        png = os.path.join(args.target, stem + ".png")
+        # 目标目录：未指定则与源同目录
+        dst_dir = out_dir or args.target
+        dst_src = os.path.join(dst_dir, f)
+        if out_dir:
+            import shutil as _sh
+            _sh.copy2(src, dst_src)  # 源文件一并归档到输出目录
+            src = dst_src
+        outs = [f]
+        png = os.path.join(dst_dir, stem + ".png")
         cmd = [bin_path, "-x", "-f", "png", "--scale", "2" if args.png_dpi >= 200 else "1",
                "-o", png, src]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode == 0 and os.path.exists(png):
-            outs.append(png); ok += 1
+            outs.append(os.path.basename(png)); ok += 1
         else:
             print(f"PNG 导出失败 {f}: {r.stderr[-300:] if r.stderr else ''}")
             fail += 1
             continue
         if not args.skip_vsdx:
-            vsdx = os.path.join(args.target, stem + ".vsdx")
+            vsdx = os.path.join(dst_dir, stem + ".vsdx")
             cmd2 = [bin_path, "-x", "-f", "vsdx", "-o", vsdx, src]
             r2 = subprocess.run(cmd2, capture_output=True, text=True)
             if r2.returncode == 0 and os.path.exists(vsdx):
-                outs.append(vsdx)
+                outs.append(os.path.basename(vsdx))
             else:
                 print(f"VSDX 导出失败 {f}（可后续手动导出）: {r2.stderr[-200:] if r2.stderr else ''}")
-        print(f"[export_drawio] {f} -> {', '.join(outs)}")
-    print(f"\n完成：成功 {ok} / 失败 {fail}。")
+        print(f"[export_drawio] {f} -> {', '.join(outs)} (于 {dst_dir})")
+    print(f"\n完成：成功 {ok} / 失败 {fail}。输出目录：{out_dir or args.target}")
     print("提醒：.drawio/.png/.vsdx 三件套登记进 figure-registry.yaml；docx 插图用 PNG，交审/留档用 .vsdx。")
     return 0 if fail == 0 else 1
 
